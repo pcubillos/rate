@@ -197,19 +197,35 @@ def top(T, C, N, O):
 class Rate():
   """
   Reliable Analytic Thermochemical Equilibrium.
-  Cubillos & Blecic (2018), ApJ, XX, YY.
+  Cubillos, Blecic, & Dobbs-Dixon (2018), ApJ, XX, YY.
 
   References
   ----------
-    HL2016: Heng & Lyons (2016), ApJ, 817, 149
+    CBD2018:  Cubillos, Blecic, & Dobbs-Dixon (2018), ApJ
     HT2016: Heng & Tsai (2016), ApJ, 829, 104
-    CB2018: Cubillos & Blecic (2018), ApJ
+    HL2016: Heng & Lyons (2016), ApJ, 817, 149
   """
-  def __init__(self):
-    self.C = 2.5e-4
-    self.N = 1.0e-4
-    self.O = 5.0e-4
-    # Initialized deltaG interpolators:
+  def __init__(self, C=None, N=None, O=None):
+    """
+    Class initializer.
+
+    Parameters
+    ----------
+    C: Float
+       Carbon elemental abundance (relative to hydrogen).
+    N: Float
+       Nitrogen elemental abundance (relative to hydrogen).
+    O: Float
+       Oxygen elemental abundance (relative to hydrogen).
+    """
+    if C is None:
+      self.C = 2.5e-4
+    if N is None:
+      self.N = 1.0e-4
+    if O is None:
+      self.O = 5.0e-4
+
+    # Initialize deltaG interpolators:
     self.grt = gRT()
     # Number of species:
     self.nmol = 9
@@ -619,7 +635,7 @@ class Rate():
     CO2  = CO * H2O / k2
     C2H2 = k3 * CH4**2
     C2H4 = C2H2 / k4
-    # Solve for NH3 from quadratic formula (Eq. (21) of CB2018):
+    # Solve for NH3 from quadratic formula (Eq. (21) of CBD2018):
     b = 1.0 + k6*CH4
     NH3 = (np.sqrt(b**2 + 16*k5*self.N) - b) /(4*k5)
     # Use this approximation when 2*K5 << (1+K6*CH4):
@@ -748,7 +764,7 @@ class Rate():
   def solve(self, temp, press, C=None, N=None, O=None, poly=None):
     """
     Compute analytic thermochemical equilibrium abundances following
-    the prescription of Cubillos & Blecic (2018), ApJ, XX, YY.
+    the prescription of Cubillos, Blecic, & Dobbs-Dixon (2018), ApJ, XX, YY.
 
     Parameters
     ----------
@@ -789,7 +805,7 @@ class Rate():
     if O is not None:
       self.O = O
     C, N, O = self.C, self.N, self.O
-    
+
     if poly is not None:
       pass  # TBD
 
