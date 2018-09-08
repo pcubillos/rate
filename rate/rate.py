@@ -218,11 +218,15 @@ class Rate():
     O: Float
        Oxygen elemental abundance (relative to hydrogen).
     """
-    if C is None:
+    # Initialize elemental abundances:
+    self.C = None
+    self.N = None
+    self.O = None
+    if C is not None:
       self.C = 2.5e-4
-    if N is None:
+    if N is not None:
       self.N = 1.0e-4
-    if O is None:
+    if O is not None:
       self.O = 5.0e-4
 
     # Initialize deltaG interpolators:
