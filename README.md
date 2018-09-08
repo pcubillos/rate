@@ -31,7 +31,7 @@ git clone https://github.com/pcubillos/rate/
 
 ### Getting Started
 
-The following script processes the Exomol HCN line-transition data.  Returning a LBL and continuum files with compressed info.
+The following Python script shows how to compute equilibrium abundances with ``rate``:
 
 ```python
 import numpy as np
