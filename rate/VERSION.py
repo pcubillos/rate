@@ -3,5 +3,5 @@
 
 # rate version:
 rate_VER =  0  # Major version
-rate_MIN =  0  # Minor version
-rate_REV =  2  # Revision
+rate_MIN =  1  # Minor version
+rate_REV =  0  # Revision
