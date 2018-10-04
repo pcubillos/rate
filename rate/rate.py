@@ -205,7 +205,7 @@ class Rate():
     HT2016: Heng & Tsai (2016), ApJ, 829, 104
     HL2016: Heng & Lyons (2016), ApJ, 817, 149
   """
-  def __init__(self, C=None, N=None, O=None):
+  def __init__(self, C=2.5e-4, N=1.0e-4, O=5.0e-4):
     """
     Class initializer.
 
@@ -219,15 +219,9 @@ class Rate():
        Oxygen elemental abundance (relative to hydrogen).
     """
     # Initialize elemental abundances:
-    self.C = None
-    self.N = None
-    self.O = None
-    if C is not None:
-      self.C = 2.5e-4
-    if N is not None:
-      self.N = 1.0e-4
-    if O is not None:
-      self.O = 5.0e-4
+    self.C = C
+    self.N = N
+    self.O = O
 
     # Initialize deltaG interpolators:
     self.grt = gRT()
