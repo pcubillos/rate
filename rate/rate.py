@@ -205,7 +205,7 @@ class Rate():
     HT2016: Heng & Tsai (2016), ApJ, 829, 104
     HL2016: Heng & Lyons (2016), ApJ, 817, 149
   """
-  def __init__(self, C=None, N=None, O=None):
+  def __init__(self, C=2.5e-4, N=1.0e-4, O=5.0e-4, fHe=0.0):
     """
     Class initializer.
 
@@ -217,22 +217,43 @@ class Rate():
        Nitrogen elemental abundance (relative to hydrogen).
     O: Float
        Oxygen elemental abundance (relative to hydrogen).
+    fHe: Float
+       Helium/Hydrogen elemental abundance ratio (for solar values
+       fHe=0.0851, Asplund et al. 2009).
     """
     # Initialize elemental abundances:
-    self.C = None
-    self.N = None
-    self.O = None
-    if C is not None:
-      self.C = 2.5e-4
-    if N is not None:
-      self.N = 1.0e-4
-    if O is not None:
-      self.O = 5.0e-4
+    self.C = C
+    self.N = N
+    self.O = O
 
     # Initialize deltaG interpolators:
     self.grt = gRT()
+    # Helium elemental fraction:
+    self.fHe = fHe
     # Number of species:
-    self.nmol = 9
+    self.nmol = 12
+
+
+  def kprime0(self, temp, press):
+    """
+    Compute the zeroth equilibrium constant K0 (Eq. (X) of CBD2018) for
+    the reaction: H2 <-> 2*H,
+    with k0 = n_H**2.
+
+    Parameters
+    ----------
+    temp: Float scalar or 1D ndarray
+       Temperature in Kelvin degrees.
+    press: Float scalar or 1D ndarray
+       Pressure in bars.
+
+    Returns
+    -------
+    k0: Scalar or 1D float ndarray
+       Zeroth normalized equilibrium constant (same shape as inputs).
+    """
+    k0 = np.exp(-( 2*self.grt("H",temp) - self.grt("H2",temp) )) / press
+    return k0
 
 
   def kprime(self, temp, press):
@@ -371,7 +392,7 @@ class Rate():
     return k6
 
 
-  def HCO_poly6_CO(self, temp, press, k1, k2, k3, k4, k5=None, k6=None):
+  def HCO_poly6_CO(self, temp, press, f, k1, k2, k3, k4, k5=None, k6=None):
     """
     Compute polynomial coefficients for CO in HCO chemistry considering
     six molecules: H2O, CO, CO2, CH4, C2H2, and C2H4.
@@ -382,6 +403,8 @@ class Rate():
        Temperature in Kelvin degrees.
     press: Float
        Pressure in bars.
+    f: Float
+       Ratio of available hydrogen atoms over molecular-hydrogen particles.
     k1: Float
        First scaled equilibrium constant at input temperature and pressure.
     k2: Float
@@ -403,20 +426,21 @@ class Rate():
     # Elemental abundances:
     C, O = self.C, self.O
     # Polynomial coefficients sorted from lowest to highest degree:
-    A = [-8*C*O**2*k1**2*k2**3*k4,
-         -8*C*O**2*k1**2*k2**2*k4  + 8*C*O*k1**2*k2**3*k4
-           + 8*O**3*k1**2*k2**2*k4 + 4*O**2*k1**2*k2**3*k4 + 2*O*k1*k2**3*k4,
-          8*C*O* k1**2*k2**2*k4 - 2*C*k1**2*k2**3*k4 - 8*O**2*k1**2*k2**2*k4
-           - 4*O*k1**2*k2**3*k4 + 4*O*k1*k2**2*k4    - k1*k2**3*k4
-           + 2*k2**3*k3*k4 + 2*k2**3*k3,
-         -2*C*k1**2*k2**2*k4 + 2*O*k1**2*k2**2*k4 + 2*O*k1*k2*k4
+    A = [-C*O**2*f**3*k1**2*k2**3*k4,
+         -C*O**2*f**3*k1**2*k2**2*k4 + 2*C*O*f**2*k1**2*k2**3*k4
+           + O**3*f**3*k1**2*k2**2*k4 + O**2*f**2*k1**2*k2**3*k4
+           + O*f*k1*k2**3*k4,
+         2*C*O*f**2*k1**2*k2**2*k4 - C*f*k1**2*k2**3*k4
+           - 2*O**2*f**2*k1**2*k2**2*k4 - 2*O*f*k1**2*k2**3*k4
+           + 2*O*f*k1*k2**2*k4 - k1*k2**3*k4 + 2*k2**3*k3*k4 + 2*k2**3*k3,
+         -C*f*k1**2*k2**2*k4 + O*f*k1**2*k2**2*k4 + O*f*k1*k2*k4
            + k1**2*k2**3*k4 - 2*k1*k2**2*k4 + 6*k2**2*k3*k4 + 6*k2**2*k3,
-         -1*k1*k2*k4 + 6*k2*k3*k4 + 6*k2*k3,
-          2*k3*k4 + 2*k3]
+         -k1*k2*k4 + 6*k2*k3*k4 + 6*k2*k3,
+         2*k3*k4 + 2*k3]
     return A
 
 
-  def HCO_poly6_H2O(self, temp, press, k1, k2, k3, k4, k5=None, k6=None):
+  def HCO_poly6_H2O(self, temp, press, f, k1, k2, k3, k4, k5=None, k6=None):
     """
     Get polynomial coefficients for H2O in HCO chemistry considering
     six molecules: H2O, CO, CO2, CH4, C2H2, and C2H4.
@@ -427,6 +451,8 @@ class Rate():
        Temperature in Kelvin degrees.
     press: Float
        Pressure in bars.
+    f: Float
+       Ratio of available hydrogen atoms over molecular-hydrogen particles.
     k1: Float
        First scaled equilibrium constant at input temperature and pressure.
     k2: Float
@@ -448,17 +474,17 @@ class Rate():
     # Elemental abundances:
     C, O = self.C, self.O
     # Polynomial coefficients sorted from lowest to highest degree:
-    A = [8*O**2*k2**2*k3*k4 + 8*O**2*k2**2*k3,
-         2*O*k1*k2**2*k4 - 8*O*k2**2*k3*k4 - 8*O*k2**2*k3,
-        -2*C*k1**2*k2**2*k4 + 2*O*k1**2*k2**2*k4 + 2*O*k1*k2*k4
+    A = [2*O**2*f**2*k2**2*k3*k4 + 2*O**2*f**2*k2**2*k3,
+         O*f*k1*k2**2*k4 - 4*O*f*k2**2*k3*k4 - 4*O*f*k2**2*k3,
+        -C*f*k1**2*k2**2*k4 + O*f*k1**2*k2**2*k4 + O*f*k1*k2*k4
           - k1*k2**2*k4 + 2*k2**2*k3*k4 + 2*k2**2*k3,
-        -4*C*k1**2*k2*k4 + 4*O*k1**2*k2*k4 - k1**2*k2**2*k4 - k1*k2*k4,
-        -2*C*k1**2*k4 + 2*O*k1**2*k4 - 2*k1**2*k2*k4,
-        -1*k1**2*k4]
+        -2*C*f*k1**2*k2*k4 + 2*O*f*k1**2*k2*k4 - k1**2*k2**2*k4 - k1*k2*k4,
+        -C*f*k1**2*k4 + O*f*k1**2*k4 - 2*k1**2*k2*k4,
+        -k1**2*k4]
     return A
 
 
-  def HCNO_poly8_CO(self, temp, press, k1, k2, k3, k4, k5, k6):
+  def HCNO_poly8_CO(self, temp, press, f, k1, k2, k3, k4, k5, k6):
     """
     Get polynomial coefficients for CO in HCNO chemistry considering
     eight molecules: H2O, CO, CH4, C2H2, C2H4, HCN, NH3, and N2.
@@ -469,6 +495,8 @@ class Rate():
        Temperature in Kelvin degrees.
     press: Float
        Pressure in bars.
+    f: Float
+       Ratio of available hydrogen atoms over molecular-hydrogen particles.
     k1: Float
        First scaled equilibrium constant at input temperature and pressure.
     k2: Float
@@ -490,38 +518,37 @@ class Rate():
     # Elemental abundances:
     C, N, O = self.C, self.N, self.O
     # Polynomial coefficients sorted from lowest to highest degree:
-    A = [128*C**2*O**4*k1**4*k4**2*k5,
-         -16*C*O**3*k1**3*k4**2*(16*C*k1*k5 + 8*O*k1*k5 + 4*k5 - k6),
-           4*O**2*k1**2*k4*(48*C**2*k1**2*k4*k5 + 64*C*O*k1**2*k4*k5
-                          + 24*C*k1*k4*k5 - 6*C*k1*k4*k6 - 16*C*k3*k4*k5
-                          - 16*C*k3*k5    + 2*C*k4*k6**2 - 2*N*k4*k6**2
-                          +  8*O**2*k1**2*k4*k5 + 8*O*k1*k4*k5
-                          -  2*O*k1*k4*k6 + 2*k4*k5 - k4*k6),
-          -2*O*k1*k4*(32*C**2*k1**3*k4*k5 + 96*C*O*k1**3*k4*k5
-                    + 24*C*k1**2*k4*k5 - 6*C*k1**2*k4*k6 - 32*C*k1*k3*k4*k5
-                    - 32*C*k1*k3*k5    + 4*C*k1*k4*k6**2 - 4*N*k1*k4*k6**2
-                    + 32*O**2*k1**3*k4*k5 + 24*O*k1**2*k4*k5 - 6*O*k1**2*k4*k6
-                    - 16*O*k1*k3*k4*k5 - 16*O*k1*k3*k5 + 2*O*k1*k4*k6**2
-                    + 4*k1*k4*k5       - 2*k1*k4*k6 - 8*k3*k4*k5 + 2*k3*k4*k6
-                    - 8*k3*k5 + 2*k3*k6 + k4*k6**2),
-           8*C**2*k1**4*k4**2*k5       + 64*C*O*k1**4*k4**2*k5
-              +  8*C*k1**3*k4**2*k5    -  2*C*k1**3*k4**2*k6
-              - 16*C*k1**2*k3*k4**2*k5 - 16*C*k1**2*k3*k4*k5
-              +  2*C*k1**2*k4**2*k6**2 -  2*N*k1**2*k4**2*k6**2
-              + 48*O**2*k1**4*k4**2*k5 + 24*O*k1**3*k4**2*k5
-              -  6*O*k1**3*k4**2*k6    - 32*O*k1**2*k3*k4**2*k5
-              - 32*O*k1**2*k3*k4*k5    + 4*O*k1**2*k4**2*k6**2
-              + 2*k1**2*k4**2*k5 - k1**2*k4**2*k6   - 8*k1*k3*k4**2*k5
-              + 2*k1*k3*k4**2*k6 - 8*k1*k3*k4*k5    + 2*k1*k3*k4*k6
-              + k1*k4**2*k6**2   + 8*k3**2*k4**2*k5 + 16*k3**2*k4*k5
-              + 8*k3**2*k5       - 2*k3*k4**2*k6**2 - 2*k3*k4*k6**2,
-          -1*k1**2*k4*(8*C*k1**2*k4*k5 + 16*O*k1**2*k4*k5 + 4*k1*k4*k5
-                       - k1*k4*k6 - 8*k3*k4*k5 - 8*k3*k5 + k4*k6**2),
-           2*k1**4*k4**2*k5]
+    A = [2*C**2*O**4*f**6*k1**4*k4**2*k5,
+        -C*O**3*f**4*k1**3*k4**2*(8*C*f*k1*k5 + 4*O*f*k1*k5 + 4*k5 - k6),
+         O**2*f**2*k1**2*k4*(12*C**2*f**2*k1**2*k4*k5 + 16*C*O*f**2*k1**2*k4*k5
+                           + 12*C*f*k1*k4*k5 - 3*C*f*k1*k4*k6 - 8*C*f*k3*k4*k5
+                           - 8*C*f*k3*k5 + C*f*k4*k6**2 - N*f*k4*k6**2
+                           + 2*O**2*f**2*k1**2*k4*k5 + 4*O*f*k1*k4*k5
+                           - O*f*k1*k4*k6 + 2*k4*k5 - k4*k6),
+        -O*f*k1*k4*(8*C**2*f**2*k1**3*k4*k5 + 24*C*O*f**2*k1**3*k4*k5
+                 + 12*C*f*k1**2*k4*k5 - 3*C*f*k1**2*k4*k6 - 16*C*f*k1*k3*k4*k5
+                 - 16*C*f*k1*k3*k5 + 2*C*f*k1*k4*k6**2 - 2*N*f*k1*k4*k6**2
+                 + 8*O**2*f**2*k1**3*k4*k5 + 12*O*f*k1**2*k4*k5
+                 - 3*O*f*k1**2*k4*k6 - 8*O*f*k1*k3*k4*k5 - 8*O*f*k1*k3*k5
+                 + O*f*k1*k4*k6**2 + 4*k1*k4*k5 - 2*k1*k4*k6 - 8*k3*k4*k5
+                 + 2*k3*k4*k6 - 8*k3*k5 + 2*k3*k6 + k4*k6**2),
+         2*C**2*f**2*k1**4*k4**2*k5 + 16*C*O*f**2*k1**4*k4**2*k5
+           + 4*C*f*k1**3*k4**2*k5 - C*f*k1**3*k4**2*k6
+           - 8*C*f*k1**2*k3*k4**2*k5 - 8*C*f*k1**2*k3*k4*k5
+           + C*f*k1**2*k4**2*k6**2 - N*f*k1**2*k4**2*k6**2
+           + 12*O**2*f**2*k1**4*k4**2*k5 + 12*O*f*k1**3*k4**2*k5
+           - 3*O*f*k1**3*k4**2*k6 - 16*O*f*k1**2*k3*k4**2*k5
+           - 16*O*f*k1**2*k3*k4*k5 + 2*O*f*k1**2*k4**2*k6**2 + 2*k1**2*k4**2*k5
+           - k1**2*k4**2*k6 - 8*k1*k3*k4**2*k5 + 2*k1*k3*k4**2*k6
+           - 8*k1*k3*k4*k5 + 2*k1*k3*k4*k6 + k1*k4**2*k6**2 + 8*k3**2*k4**2*k5
+           + 16*k3**2*k4*k5 + 8*k3**2*k5 - 2*k3*k4**2*k6**2 - 2*k3*k4*k6**2,
+        -k1**2*k4*(4*C*f*k1**2*k4*k5 + 8*O*f*k1**2*k4*k5 + 4*k1*k4*k5
+                   - k1*k4*k6 - 8*k3*k4*k5 - 8*k3*k5 + k4*k6**2),
+         2*k1**4*k4**2*k5]
     return A
 
 
-  def HCNO_poly8_H2O(self, temp, press, k1, k2, k3, k4, k5, k6):
+  def HCNO_poly8_H2O(self, temp, press, f, k1, k2, k3, k4, k5, k6):
     """
     Get polynomial coefficients for H2O in HCNO chemistry considering
     eight molecules: H2O, CO, CH4, C2H2, C2H4, HCN, NH3, and N2.
@@ -532,6 +559,8 @@ class Rate():
        Temperature in Kelvin degrees.
     press: Float
        Pressure in bars.
+    f: Float
+       Ratio of available hydrogen atoms over molecular-hydrogen particles.
     k1: Float
        First scaled equilibrium constant at input temperature and pressure.
     k2: Float
@@ -553,46 +582,44 @@ class Rate():
     # Elemental abundances:
     C, N, O = self.C, self.N, self.O
     # Polynomial coefficients sorted from lowest to highest degree:
-    A = [32*O**4*k3*(k4 + 1)*(4*k3*k4*k5 + 4*k3*k5 - k4*k6**2),
-          8*O**3*( 8*k1*k3*k4**2*k5 - 2*k1*k3*k4**2*k6 +  8*k1*k3*k4*k5
-                -  2*k1*k3*k4*k6    - 1*k1*k4**2*k6**2 - 32*k3**2*k4**2*k5
-                - 64*k3**2*k4*k5    - 32*k3**2*k5      +  8*k3*k4**2*k6**2
-                +  8*k3*k4*k6**2),
-         -4*O**2*(16*C*k1**2*k3*k4**2*k5 + 16*C*k1**2*k3*k4*k5
-                 - 2*C*k1**2*k4**2*k6**2 + 2*N*k1**2*k4**2*k6**2
-                - 16*O*k1**2*k3*k4**2*k5 - 16*O*k1**2*k3*k4*k5
-                +  2*O*k1**2*k4**2*k6**2 - 2*k1**2*k4**2*k5
-                +  1*k1**2*k4**2*k6 + 24*k1*k3*k4**2*k5 - 6*k1*k3*k4**2*k6
-                + 24*k1*k3*k4*k5    - 6*k1*k3*k4*k6 - 3*k1*k4**2*k6**2
-                - 48*k3**2*k4**2*k5 - 96*k3**2*k4*k5 - 48*k3**2*k5
-                + 12*k3*k4**2*k6**2 + 12*k3*k4*k6**2),
-         -2*O*(8*C*k1**3*k4**2*k5 - 2*C*k1**3*k4**2*k6
-            - 32*C*k1**2*k3*k4**2*k5 - 32*C*k1**2*k3*k4*k5
-            +  4*C*k1**2*k4**2*k6**2 -  4*N*k1**2*k4**2*k6**2
-            -  8*O*k1**3*k4**2*k5    +  2*O*k1**3*k4**2*k6
-            + 48*O*k1**2*k3*k4**2*k5 + 48*O*k1**2*k3*k4*k5
-            -  6*O*k1**2*k4**2*k6**2 + 4*k1**2*k4**2*k5 -  2*k1**2*k4**2*k6
-            - 24*k1*k3*k4**2*k5      + 6*k1*k3*k4**2*k6 - 24*k1*k3*k4*k5
-            +  6*k1*k3*k4*k6         + 3*k1*k4**2*k6**2 + 32*k3**2*k4**2*k5
-            + 64*k3**2*k4*k5 + 32*k3**2*k5 - 8*k3*k4**2*k6**2 - 8*k3*k4*k6**2),
-          8*C**2*k1**4*k4**2*k5        - 16*C*O*k1**4*k4**2*k5
-              +  8*C*k1**3*k4**2*k5    -  2*C*k1**3*k4**2*k6
-              - 16*C*k1**2*k3*k4**2*k5 - 16*C*k1**2*k3*k4*k5
-              +  2*C*k1**2*k4**2*k6**2 -  2*N*k1**2*k4**2*k6**2
-              +  8*O**2*k1**4*k4**2*k5 - 16*O*k1**3*k4**2*k5
-              +  4*O*k1**3*k4**2*k6    + 48*O*k1**2*k3*k4**2*k5
-              + 48*O*k1**2*k3*k4*k5    -  6*O*k1**2*k4**2*k6**2
-              + 2*k1**2*k4**2*k5 - 1*k1**2*k4**2*k6 -  8*k1*k3*k4**2*k5
-              + 2*k1*k3*k4**2*k6 - 8*k1*k3*k4*k5    +  2*k1*k3*k4*k6
-              + 1*k1*k4**2*k6**2 + 8*k3**2*k4**2*k5 + 16*k3**2*k4*k5
-              + 8*k3**2*k5       - 2*k3*k4**2*k6**2 -  2*k3*k4*k6**2,
-          1*k1**2*k4*(8*C*k1**2*k4*k5 - 8*O*k1**2*k4*k5 + 4*k1*k4*k5
-                      - k1*k4*k6 - 8*k3*k4*k5 - 8*k3*k5 + k4*k6**2),
-          2*k1**4*k4**2*k5]
+    A = [2*O**4*f**4*k3*(k4 + 1)*(4*k3*k4*k5 + 4*k3*k5 - k4*k6**2),
+         O**3*f**3*(8*k1*k3*k4**2*k5 - 2*k1*k3*k4**2*k6 + 8*k1*k3*k4*k5
+             - 2*k1*k3*k4*k6 - k1*k4**2*k6**2 - 32*k3**2*k4**2*k5
+             - 64*k3**2*k4*k5 - 32*k3**2*k5 + 8*k3*k4**2*k6**2 + 8*k3*k4*k6**2),
+        -O**2*f**2*(8*C*f*k1**2*k3*k4**2*k5 + 8*C*f*k1**2*k3*k4*k5
+                  - C*f*k1**2*k4**2*k6**2 + N*f*k1**2*k4**2*k6**2
+                  - 8*O*f*k1**2*k3*k4**2*k5 - 8*O*f*k1**2*k3*k4*k5
+                  + O*f*k1**2*k4**2*k6**2 - 2*k1**2*k4**2*k5 + k1**2*k4**2*k6
+                  + 24*k1*k3*k4**2*k5 - 6*k1*k3*k4**2*k6 + 24*k1*k3*k4*k5
+                  - 6*k1*k3*k4*k6 - 3*k1*k4**2*k6**2 - 48*k3**2*k4**2*k5
+                  - 96*k3**2*k4*k5 - 48*k3**2*k5 + 12*k3*k4**2*k6**2
+                  + 12*k3*k4*k6**2),
+        -O*f*(4*C*f*k1**3*k4**2*k5 - C*f*k1**3*k4**2*k6
+           - 16*C*f*k1**2*k3*k4**2*k5 - 16*C*f*k1**2*k3*k4*k5
+           + 2*C*f*k1**2*k4**2*k6**2 - 2*N*f*k1**2*k4**2*k6**2
+           - 4*O*f*k1**3*k4**2*k5 + O*f*k1**3*k4**2*k6
+           + 24*O*f*k1**2*k3*k4**2*k5 + 24*O*f*k1**2*k3*k4*k5
+           - 3*O*f*k1**2*k4**2*k6**2 + 4*k1**2*k4**2*k5 - 2*k1**2*k4**2*k6
+           - 24*k1*k3*k4**2*k5 + 6*k1*k3*k4**2*k6 - 24*k1*k3*k4*k5
+           + 6*k1*k3*k4*k6 + 3*k1*k4**2*k6**2 + 32*k3**2*k4**2*k5
+           + 64*k3**2*k4*k5 + 32*k3**2*k5 - 8*k3*k4**2*k6**2 - 8*k3*k4*k6**2),
+         2*C**2*f**2*k1**4*k4**2*k5 - 4*C*O*f**2*k1**4*k4**2*k5
+           + 4*C*f*k1**3*k4**2*k5 - C*f*k1**3*k4**2*k6
+           - 8*C*f*k1**2*k3*k4**2*k5 - 8*C*f*k1**2*k3*k4*k5
+           + C*f*k1**2*k4**2*k6**2 - N*f*k1**2*k4**2*k6**2
+           + 2*O**2*f**2*k1**4*k4**2*k5 - 8*O*f*k1**3*k4**2*k5
+           + 2*O*f*k1**3*k4**2*k6 + 24*O*f*k1**2*k3*k4**2*k5
+           + 24*O*f*k1**2*k3*k4*k5 - 3*O*f*k1**2*k4**2*k6**2 + 2*k1**2*k4**2*k5
+           - k1**2*k4**2*k6 - 8*k1*k3*k4**2*k5 + 2*k1*k3*k4**2*k6
+           - 8*k1*k3*k4*k5 + 2*k1*k3*k4*k6 + k1*k4**2*k6**2 + 8*k3**2*k4**2*k5
+           + 16*k3**2*k4*k5 + 8*k3**2*k5 - 2*k3*k4**2*k6**2 - 2*k3*k4*k6**2,
+         k1**2*k4*(4*C*f*k1**2*k4*k5 - 4*O*f*k1**2*k4*k5 + 4*k1*k4*k5
+                - k1*k4*k6 - 8*k3*k4*k5 - 8*k3*k5 + k4*k6**2),
+         2*k1**4*k4**2*k5]
     return A
 
 
-  def solve_rest(self, H2O, CO, k1, k2, k3, k4, k5, k6):
+  def solve_rest(self, H2O, CO, f, k1, k2, k3, k4, k5, k6):
     """
     Find abundances for remaining species once H2O and CO are known.
     Note that this also uses self.N.
@@ -603,6 +630,8 @@ class Rate():
        Water abundance.
     CO: Float scalar or 1D ndarray
        Carbon monoxide abundance.
+    f: Float scalar or 1D ndarray
+       Ratio of available hydrogen atoms over molecular-hydrogen particles.
     k1: Float scalar or 1D ndarray
        First scaled equilibrium constant.
     k2: Float scalar or 1D ndarray
@@ -641,19 +670,19 @@ class Rate():
     C2H4 = C2H2 / k4
     # Solve for NH3 from quadratic formula (Eq. (21) of CBD2018):
     b = 1.0 + k6*CH4
-    NH3 = (np.sqrt(b**2 + 16*k5*self.N) - b) /(4*k5)
+    NH3 = (np.sqrt(b**2 + 8*f*k5*self.N) - b) /(4*k5)
     # Use this approximation when 2*K5 << (1+K6*CH4):
     try:
-      NH3[16*k5*self.N/b**2<1e-6] = 2*self.N
+      NH3[8*f*k5*self.N/b**2<1e-6] = f*self.N
     except:
-      if 16*k5*self.N/b**2 < 1e-6:
-        NH3 = 2*self.N
+      if 8*f*k5*self.N/b**2 < 1e-6:
+        NH3 = f*self.N
     HCN = k6 * NH3 * CH4
     N2  = k5 * NH3**2
     return H2O, CH4, CO, CO2, NH3, C2H2, C2H4, HCN, N2
 
 
-  def solveH2O(self, poly, temp, press, k1, k2, k3, k4, k5, k6, guess=None):
+  def solveH2O(self, poly, temp, press, f, k1, k2, k3, k4, k5, k6, guess=None):
     """
     Wrapper to find root for H2O polynomial for the input poly
     function at given atmospheric properties.
@@ -666,6 +695,8 @@ class Rate():
        Temperature in Kelvin degree.
     press: Float
        Pressure in bar.
+    f: Float
+       Ratio of available hydrogen atoms over molecular-hydrogen particles.
     k1: Float
        First scaled equilibrium constant.
     k2: Float
@@ -700,16 +731,16 @@ class Rate():
     N2: Float
        Molecular nitrogen abundance.
     """
-    vmax = 2*self.O
+    vmax = f*self.O
     if guess is None:
       guess = 0.99 * vmax
-    A   = poly(temp, press, k1, k2, k3, k4, k5, k6)
+    A   = poly(temp, press, f, k1, k2, k3, k4, k5, k6)
     H2O = bound_nr(A, guess=guess, vmax=vmax)
-    CO  = (2*self.O-H2O) / (1.0+H2O/k2)
-    return np.array(self.solve_rest(H2O, CO, k1,k2,k3,k4,k5,k6))
+    CO  = (f*self.O-H2O) / (1.0+2*H2O/k2)
+    return np.array(self.solve_rest(H2O, CO, f, k1,k2,k3,k4,k5,k6))
 
 
-  def solveCO(self, poly, temp, press, k1, k2, k3, k4, k5, k6, guess=None):
+  def solveCO(self, poly, temp, press, f, k1, k2, k3, k4, k5, k6, guess=None):
     """
     Wrapper to find root for CO polynomial for the input poly
     function at given atmospheric properties.
@@ -722,6 +753,8 @@ class Rate():
        Temperature in Kelvin degree.
     press: Float
        Pressure in bar.
+    f: Float
+       Ratio of available hydrogen atoms over molecular-hydrogen particles.
     k1: Float
        First scaled equilibrium constant.
     k2: Float
@@ -756,13 +789,13 @@ class Rate():
     N2: Float
        Molecular nitrogen abundance.
     """
-    vmax = 2*np.amin((self.C,self.O))
+    vmax = f*np.amin((self.C,self.O))
     if guess is None:
       guess = 0.99 * vmax
-    A   = poly(temp, press, k1, k2, k3, k4, k5, k6)
+    A   = poly(temp, press, f, k1, k2, k3, k4, k5, k6)
     CO  = bound_nr(A, guess=guess, vmax=vmax)
-    H2O = (2*self.O-CO) / (1.0+CO/k2)
-    return np.array(self.solve_rest(H2O, CO, k1,k2,k3,k4,k5,k6))
+    H2O = (f*self.O-CO) / (1.0+2*CO/k2)
+    return np.array(self.solve_rest(H2O, CO, f, k1,k2,k3,k4,k5,k6))
 
 
   def solve(self, temp, press, C=None, N=None, O=None, poly=None):
@@ -789,11 +822,12 @@ class Rate():
     -------
     Q: 2D float ndarray
        Array of shape (nmol, nlayers) with equilibrium abundances for
-       H2O, CH4, CO, CO2, NH3, C2H2, C2H4, HCN, and N2.
+       H2O, CH4, CO, CO2, NH3, C2H2, C2H4, HCN, N2, H2, H, and He.
     """
     nlayers = len(temp)
 
     # Equilibrium constants:
+    k0 = self.kprime0(temp, press)
     k1 = self.kprime(temp, press)
     k2 = self.kprime2(temp)
     k3 = self.kprime3(temp, press)
@@ -810,6 +844,11 @@ class Rate():
       self.O = O
     C, N, O = self.C, self.N, self.O
 
+    # Hydrogen chemistry:
+    Hatom = (-1 + np.sqrt(1+8/k0)) / (4/k0)
+    Hmol  = Hatom**2/k0
+    f = (Hatom + 2*Hmol) / Hmol
+
     if poly is not None:
       pass  # TBD
 
@@ -819,25 +858,34 @@ class Rate():
       if C/O < 1.0:
         if N/C > 10 and temp[i] > 2000.0:
           if C/O > 0.1:
-            Q[:,i] = self.solveH2O(self.HCNO_poly8_H2O, temp[i], press[i],
+            Q[:9,i] = self.solveH2O(self.HCNO_poly8_H2O, temp[i], press[i],f[i],
                                    k1[i], k2[i], k3[i], k4[i], k5[i], k6[i])
           else:
-            Q[:,i] = self.solveCO(self.HCNO_poly8_CO, temp[i], press[i],
+            Q[:9,i] = self.solveCO(self.HCNO_poly8_CO, temp[i], press[i], f[i],
                                    k1[i], k2[i], k3[i], k4[i], k5[i], k6[i])
         else:
-          Q[:,i] = self.solveCO(self.HCO_poly6_CO, temp[i], press[i],
+          Q[:9,i] = self.solveCO(self.HCO_poly6_CO, temp[i], press[i], f[i],
                                    k1[i], k2[i], k3[i], k4[i], k5[i], k6[i])
       else:
         if press[i] > top(temp[i], C, N, O):
           # Lower atmosphere:
-          Q[:,i] = self.solveCO(self.HCO_poly6_CO, temp[i], press[i],
+          Q[:9,i] = self.solveCO(self.HCO_poly6_CO, temp[i], press[i], f[i],
                                    k1[i], k2[i], k3[i], k4[i], k5[i], k6[i])
         else:
           # Upper atmosphere:
           if N/C > 0.1 and temp[i] > 900.0:
-            Q[:,i] = self.solveH2O(self.HCNO_poly8_H2O, temp[i], press[i],
+            Q[:9,i] = self.solveH2O(self.HCNO_poly8_H2O, temp[i], press[i],f[i],
                                    k1[i], k2[i], k3[i], k4[i], k5[i], k6[i])
           else:
-            Q[:,i] = self.solveH2O(self.HCO_poly6_H2O, temp[i], press[i],
+            Q[:9,i] = self.solveH2O(self.HCO_poly6_H2O, temp[i], press[i], f[i],
                                    k1[i], k2[i], k3[i], k4[i], k5[i], k6[i])
+
+    # De-normalize by H2:
+    Q *= Hmol
+    # Set hydrogen and helium abundances:
+    Q[ 9] = Hmol
+    Q[10] = Hatom
+    Q[11] = self.fHe * (2*Q[9] + Q[10])
+    # Get mol mixing fracions:
+    Q /= np.sum(Q, axis=0)
     return Q
