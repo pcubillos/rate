@@ -205,7 +205,7 @@ class Rate():
     HT2016: Heng & Tsai (2016), ApJ, 829, 104
     HL2016: Heng & Lyons (2016), ApJ, 817, 149
   """
-  def __init__(self, C=2.5e-4, N=1.0e-4, O=5.0e-4):
+  def __init__(self, C=2.5e-4, N=1.0e-4, O=5.0e-4, fHe=0.0):
     """
     Class initializer.
 
@@ -217,6 +217,9 @@ class Rate():
        Nitrogen elemental abundance (relative to hydrogen).
     O: Float
        Oxygen elemental abundance (relative to hydrogen).
+    fHe: Float
+       Helium/Hydrogen elemental abundance ratio (for solar values
+       fHe=0.0851, Asplund et al. 2009).
     """
     # Initialize elemental abundances:
     self.C = C
@@ -225,8 +228,10 @@ class Rate():
 
     # Initialize deltaG interpolators:
     self.grt = gRT()
+    # Helium elemental fraction:
+    self.fHe = fHe
     # Number of species:
-    self.nmol = 11
+    self.nmol = 12
 
 
   def kprime0(self, temp, press):
@@ -790,8 +795,6 @@ class Rate():
     A   = poly(temp, press, f, k1, k2, k3, k4, k5, k6)
     CO  = bound_nr(A, guess=guess, vmax=vmax)
     H2O = (f*self.O-CO) / (1.0+2*CO/k2)
-    #print("{:.3e}: {:.3e}  {:.3e}  {:.3e} / {:.3e}  {:.3e}"
-    #      .format(press, f*self.O, f*self.C, CO, k2, 1.0+2*CO/k2))
     return np.array(self.solve_rest(H2O, CO, f, k1,k2,k3,k4,k5,k6))
 
 
@@ -819,7 +822,7 @@ class Rate():
     -------
     Q: 2D float ndarray
        Array of shape (nmol, nlayers) with equilibrium abundances for
-       H2O, CH4, CO, CO2, NH3, C2H2, C2H4, HCN, N2, H2, and H.
+       H2O, CH4, CO, CO2, NH3, C2H2, C2H4, HCN, N2, H2, H, and He.
     """
     nlayers = len(temp)
 
@@ -882,6 +885,7 @@ class Rate():
     # Set hydrogen and helium abundances:
     Q[ 9] = Hmol
     Q[10] = Hatom
+    Q[11] = self.fHe * (2*Q[9] + Q[10])
     # Get mol mixing fracions:
     Q /= np.sum(Q, axis=0)
     return Q
