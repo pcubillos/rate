@@ -230,8 +230,9 @@ class Rate():
     self.grt = gRT()
     # Helium elemental fraction:
     self.fHe = fHe
-    # Number of species:
-    self.nmol = 12
+    # Species:
+    self.species = ["H2O",  "CH4", "CO", "CO2", "NH3", "C2H2",
+                    "C2H4", "HCN", "N2", "H2",  "H",   "He"]
 
 
   def kprime0(self, temp, press):
@@ -790,7 +791,7 @@ class Rate():
     C, N, O = self.C, self.N, self.O
 
     # Output abundances:
-    Q = np.zeros((self.nmol, nlayers))
+    Q = np.zeros((len(self.species), nlayers))
 
     # Hydrogen chemistry:
     Hatom = (-1 + np.sqrt(1+8/k0)) / (4/k0)
