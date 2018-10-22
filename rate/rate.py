@@ -257,11 +257,11 @@ class Rate():
     return k0
 
 
-  def kprime(self, temp, press):
+  def kprime1(self, temp, press):
     """
     Compute the first equilibrium constant K' (Eq. (27) of HL2016) for
     the reaction: CH4 + H2O <-> CO + 3*H2,
-    with kp = n_CO / (n_CH4 * n_H2O).
+    with k1 = n_CO / (n_CH4 * n_H2O).
 
     Parameters
     ----------
@@ -272,12 +272,12 @@ class Rate():
 
     Returns
     -------
-    kp: Scalar or 1D float ndarray
+    k1: Scalar or 1D float ndarray
        First normalized equilibrium constant (same shape as inputs).
     """
-    kp = np.exp(-( self.grt("CO", temp) + 3*self.grt("H2", temp)
+    k1 = np.exp(-( self.grt("CO", temp) + 3*self.grt("H2", temp)
                   -self.grt("CH4",temp) -   self.grt("H2O",temp) )) / press**2
-    return kp
+    return k1
 
 
   def kprime2(self, temp, press=None):
@@ -774,7 +774,7 @@ class Rate():
 
     # Equilibrium constants:
     k0 = self.kprime0(temp, press)
-    k1 = self.kprime(temp, press)
+    k1 = self.kprime1(temp, press)
     k2 = self.kprime2(temp)
     k3 = self.kprime3(temp, press)
     k4 = self.kprime4(temp, press)
