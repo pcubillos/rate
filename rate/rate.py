@@ -808,7 +808,7 @@ class Rate():
     else:
       for i in np.arange(nlayers):
         if C/O < 1.0:
-          if N/C > 10 and temp[i] > 2000.0:
+          if N/C > 10 and temp[i] > 2200.0:
             if C/O > 0.1:
               poly = self.HCNO_poly8_H2O
             else:
