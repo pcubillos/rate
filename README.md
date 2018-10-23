@@ -51,15 +51,14 @@ temp1 = np.tile(1400.0, nlayers)     # kelvin
 Q1 = r.solve(temp1, press)
 
 # See results:
-label = ["H2O",  "CH4",    "CO",        "CO2",        "NH3", "C2H2",
-         "C2H4", "HCN",    "N2",        "H2",         "H",   "He"]
-col   = ["b",    "orange", "limegreen", "r",          "m",   "brown",
-         "pink", "0.5",    "gold",      "dodgerblue", "g",   "k"]
+labels = r.species
+cols   = ["navy", "orange", "limegreen", "red",         "magenta", "brown",
+          "pink", "0.5",    "gold",      "deepskyblue", "olive",    "seagreen"]
 
 plt.figure(-1, (8,5))
 plt.clf()
-for i in np.arange(len(Q1)):
-  plt.loglog(Q1[i], press, lw=2, c=col[i], label=label[i])
+for q, col, lab in zip(Q1, cols, labels):
+  plt.loglog(q, press, lw=2, color=col, label=lab)
 plt.ylim(np.amax(press), np.amin(press))
 plt.legend(loc="lower left", fontsize=9.5)
 plt.xlim(1e-25, 2)
@@ -86,8 +85,8 @@ ax.set_xticks([900, 1050, 1200, 1350])
 plt.ylabel("Pressure (bar)")
 plt.xlabel("Temperature (K)")
 ax = plt.axes([0.47, 0.12, 0.5, 0.83])
-for i in np.arange(len(Q2)):
-  plt.loglog(Q2[i], press, lw=2, c=col[i], label=label[i])
+for q, col, lab in zip(Q2, cols, labels):
+  plt.loglog(q, press, lw=2, color=col, label=lab)
 plt.ylim(np.amax(press), np.amin(press))
 plt.xlim(1e-20, 2)
 plt.xticks(np.logspace(-18, 0, 7))
@@ -103,8 +102,8 @@ plt.xlabel("Abundances")
 Q3 = r.solve(temp2, press, C=1e-3)
 plt.figure(-3, (8,5))
 plt.clf()
-for i in np.arange(len(Q3)):
-  plt.loglog(Q3[i], press, lw=2, c=col[i], label=label[i])
+for q, col, lab in zip(Q3, cols, labels):
+  plt.loglog(q, press, lw=2, color=col, label=lab)
 plt.ylim(np.amax(press), np.amin(press))
 plt.legend(loc="lower left", fontsize=9.5)
 plt.xlim(1e-18, 2)
@@ -118,9 +117,9 @@ plt.ylabel("Pressure (bar)")
 
 ### Be Kind
 
-Please, be kind and acknowledge the effort of the authors by citing the article asociated to this project:  
+Please, be kind and acknowledge the effort of the authors by citing the article associated to this project:  
 
-  [Cubillos, Blecic, & Dobbs-Dixon (2018): Towards More Reliable Analytic Thermochemical-Equilibrium Abundances](http://adsabs.harvard.edu/abs/Doo-by-doo-by-doo), ApJ XX, YY.  
+  [Cubillos, Blecic, & Dobbs-Dixon (2018): Towards More Reliable Analytic Thermochemical-Equilibrium Abundances](http://adsabs.harvard.edu/abs/Doo-by-doo-by-doo), in prep.  
 
 
 ### License

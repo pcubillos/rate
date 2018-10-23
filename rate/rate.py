@@ -230,8 +230,9 @@ class Rate():
     self.grt = gRT()
     # Helium elemental fraction:
     self.fHe = fHe
-    # Number of species:
-    self.nmol = 12
+    # Species:
+    self.species = ["H2O",  "CH4", "CO", "CO2", "NH3", "C2H2",
+                    "C2H4", "HCN", "N2", "H2",  "H",   "He"]
 
 
   def kprime0(self, temp, press):
@@ -256,11 +257,11 @@ class Rate():
     return k0
 
 
-  def kprime(self, temp, press):
+  def kprime1(self, temp, press):
     """
     Compute the first equilibrium constant K' (Eq. (27) of HL2016) for
     the reaction: CH4 + H2O <-> CO + 3*H2,
-    with kp = n_CO / (n_CH4 * n_H2O).
+    with k1 = n_CO / (n_CH4 * n_H2O).
 
     Parameters
     ----------
@@ -271,12 +272,12 @@ class Rate():
 
     Returns
     -------
-    kp: Scalar or 1D float ndarray
+    k1: Scalar or 1D float ndarray
        First normalized equilibrium constant (same shape as inputs).
     """
-    kp = np.exp(-( self.grt("CO", temp) + 3*self.grt("H2", temp)
+    k1 = np.exp(-( self.grt("CO", temp) + 3*self.grt("H2", temp)
                   -self.grt("CH4",temp) -   self.grt("H2O",temp) )) / press**2
-    return kp
+    return k1
 
 
   def kprime2(self, temp, press=None):
@@ -682,10 +683,12 @@ class Rate():
     return H2O, CH4, CO, CO2, NH3, C2H2, C2H4, HCN, N2
 
 
-  def solveH2O(self, poly, temp, press, f, k1, k2, k3, k4, k5, k6, guess=None):
+  def solve_poly(self, poly, temp, press, f, k1, k2, k3, k4, k5, k6,
+                 guess=None):
     """
-    Wrapper to find root for H2O polynomial for the input poly
-    function at given atmospheric properties.
+    Find root of input polynomial at given temperature and pressure,
+    and get abundances (normalized to H2) for H2O, CH4, CO, CO2, NH3,
+    C2H2, C2H4, HCN, and N2.
 
     Parameters
     ----------
@@ -714,88 +717,31 @@ class Rate():
 
     Returns
     -------
-    H2O: Float
-       Water abundance.
-    CH4: Float
-       Methane abundance.
-    CO: Float
-       Carbon monoxide abundance.
-    NH3: Float
-       Ammonia abundance.
-    C2H2: Float
-       Acetylene abundance.
-    C2H4: Float
-       Ethylene abundance.
-    HCN: Float
-       Hydrogen cyanide abundance.
-    N2: Float
-       Molecular nitrogen abundance.
+    abundances: 1D float ndarray
+       Abundances for H2O, CH4, CO, CO2, NH3, C2H2, C2H4, HCN, and N2.
     """
-    vmax = f*self.O
+    # Last bit in poly name tells the variable:
+    var = poly.__name__.split("_")[-1]
+    # Set upper boundary accordingly:
+    if   var == "H2O":
+      vmax = f * self.O
+    elif var == "CO":
+      vmax = f * np.amin((self.C, self.O))
+
+    # Get polynomial coefficients:
     if guess is None:
       guess = 0.99 * vmax
     A   = poly(temp, press, f, k1, k2, k3, k4, k5, k6)
-    H2O = bound_nr(A, guess=guess, vmax=vmax)
-    CO  = (f*self.O-H2O) / (1.0+2*H2O/k2)
-    return np.array(self.solve_rest(H2O, CO, f, k1,k2,k3,k4,k5,k6))
 
+    # Solve polynomial roots using Newton-Raphson method:
+    if   var == "H2O":
+      H2O = bound_nr(A, guess=guess, vmax=vmax)
+      CO  = (f*self.O-H2O) / (1.0+2*H2O/k2)
+    elif var == "CO":
+      CO  = bound_nr(A, guess=guess, vmax=vmax)
+      H2O = (f*self.O-CO) / (1.0+2*CO/k2)
 
-  def solveCO(self, poly, temp, press, f, k1, k2, k3, k4, k5, k6, guess=None):
-    """
-    Wrapper to find root for CO polynomial for the input poly
-    function at given atmospheric properties.
-
-    Parameters
-    ----------
-    poly: function
-       Function to compute polynomial coefficients.
-    temp: Float
-       Temperature in Kelvin degree.
-    press: Float
-       Pressure in bar.
-    f: Float
-       Ratio of available hydrogen atoms over molecular-hydrogen particles.
-    k1: Float
-       First scaled equilibrium constant.
-    k2: Float
-       Second scaled equilibrium constant.
-    k3: Float
-       Third scaled equilibrium constant.
-    k4: Float
-       Fourth scaled equilibrium constant.
-    k5: Float
-       Fifth scaled equilibrium constant.
-    k6: Float
-       Sixth scaled equilibrium constant.
-    guess: Float
-       Intial guess for Newton-Raphson root finder.
-
-    Returns
-    -------
-    H2O: Float
-       Water abundance.
-    CH4: Float
-       Methane abundance.
-    CO: Float
-       Carbon monoxide abundance.
-    NH3: Float
-       Ammonia abundance.
-    C2H2: Float
-       Acetylene abundance.
-    C2H4: Float
-       Ethylene abundance.
-    HCN: Float
-       Hydrogen cyanide abundance.
-    N2: Float
-       Molecular nitrogen abundance.
-    """
-    vmax = f*np.amin((self.C,self.O))
-    if guess is None:
-      guess = 0.99 * vmax
-    A   = poly(temp, press, f, k1, k2, k3, k4, k5, k6)
-    CO  = bound_nr(A, guess=guess, vmax=vmax)
-    H2O = (f*self.O-CO) / (1.0+2*CO/k2)
-    return np.array(self.solve_rest(H2O, CO, f, k1,k2,k3,k4,k5,k6))
+    return np.array(self.solve_rest(H2O, CO, f, k1, k2, k3, k4, k5, k6))
 
 
   def solve(self, temp, press, C=None, N=None, O=None, poly=None):
@@ -828,7 +774,7 @@ class Rate():
 
     # Equilibrium constants:
     k0 = self.kprime0(temp, press)
-    k1 = self.kprime(temp, press)
+    k1 = self.kprime1(temp, press)
     k2 = self.kprime2(temp)
     k3 = self.kprime3(temp, press)
     k4 = self.kprime4(temp, press)
@@ -844,41 +790,42 @@ class Rate():
       self.O = O
     C, N, O = self.C, self.N, self.O
 
+    # Output abundances:
+    Q = np.zeros((len(self.species), nlayers))
+
     # Hydrogen chemistry:
     Hatom = (-1 + np.sqrt(1+8/k0)) / (4/k0)
     Hmol  = Hatom**2/k0
     f = (Hatom + 2*Hmol) / Hmol
 
+    # Preset polynomial:
     if poly is not None:
-      pass  # TBD
+      for i in np.arange(nlayers):
+        Q[:9,i] = self.solve_poly(poly, temp[i], press[i], f[i],
+                                  k1[i], k2[i], k3[i], k4[i], k5[i], k6[i])
 
-    # Compute reliable abundances:
-    Q = np.zeros((self.nmol, nlayers))
-    for i in np.arange(nlayers):
-      if C/O < 1.0:
-        if N/C > 10 and temp[i] > 2000.0:
-          if C/O > 0.1:
-            Q[:9,i] = self.solveH2O(self.HCNO_poly8_H2O, temp[i], press[i],f[i],
-                                   k1[i], k2[i], k3[i], k4[i], k5[i], k6[i])
+    # Optimal polynomial:
+    else:
+      for i in np.arange(nlayers):
+        if C/O < 1.0:
+          if N/C > 10 and temp[i] > 2200.0:
+            if C/O > 0.1:
+              poly = self.HCNO_poly8_H2O
+            else:
+              poly = self.HCNO_poly8_CO
           else:
-            Q[:9,i] = self.solveCO(self.HCNO_poly8_CO, temp[i], press[i], f[i],
-                                   k1[i], k2[i], k3[i], k4[i], k5[i], k6[i])
-        else:
-          Q[:9,i] = self.solveCO(self.HCO_poly6_CO, temp[i], press[i], f[i],
-                                   k1[i], k2[i], k3[i], k4[i], k5[i], k6[i])
-      else:
-        if press[i] > top(temp[i], C, N, O):
-          # Lower atmosphere:
-          Q[:9,i] = self.solveCO(self.HCO_poly6_CO, temp[i], press[i], f[i],
-                                   k1[i], k2[i], k3[i], k4[i], k5[i], k6[i])
-        else:
-          # Upper atmosphere:
-          if N/C > 0.1 and temp[i] > 900.0:
-            Q[:9,i] = self.solveH2O(self.HCNO_poly8_H2O, temp[i], press[i],f[i],
-                                   k1[i], k2[i], k3[i], k4[i], k5[i], k6[i])
-          else:
-            Q[:9,i] = self.solveH2O(self.HCO_poly6_H2O, temp[i], press[i], f[i],
-                                   k1[i], k2[i], k3[i], k4[i], k5[i], k6[i])
+            poly   = self.HCO_poly6_CO
+        elif C/O >= 1:
+          if press[i] > top(temp[i], C, N, O):  # Lower atmosphere
+            poly   = self.HCO_poly6_CO
+          else:  # Upper atmosphere
+            if N/C > 0.1 and temp[i] > 900.0:
+              poly = self.HCNO_poly8_H2O
+            else:
+              poly = self.HCO_poly6_H2O
+
+        Q[:9,i] = self.solve_poly(poly, temp[i], press[i], f[i],
+                                  k1[i], k2[i], k3[i], k4[i], k5[i], k6[i])
 
     # De-normalize by H2:
     Q *= Hmol
