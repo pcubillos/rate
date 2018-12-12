@@ -1,13 +1,12 @@
-# rate
-Reliable Analytic Thermochemical Equilibrium
+# rate:
+## Reliable Analytic Thermochemical Equilibrium
 
 This code computes thermochemical-equilibrium abundances for a H-C-N-O system with known pressure, temperature, and elemental abundances.  The output abundances are H2O, CH4, CO, CO2, NH3, C2H2, C2H4, HCN, and N2, H2, H, and He.
 
 These calculations are valid over:
 * pressures from 10<sup>-8</sup> to 10<sup>3</sup> bar,
-* temperatures from 200 to 3000 K,
-* C-N-O elemental abundances from 10<sup>-3</sup> to 10<sup>3</sup> times solar abundances,
-* hydrogen-dominated systems (roughly, sum of metals less than 10%).
+* temperatures from 200 to ~2000 K,
+* C-N-O elemental abundances from 10<sup>-3</sup> to 10<sup>2</sup> times solar abundances in hydrogen-dominated systems.
 
 ### Table of Contents
 * [Team Members](#team-members)
@@ -119,7 +118,7 @@ plt.ylabel("Pressure (bar)")
 
 Please, be kind and acknowledge the effort of the authors by citing the article associated to this project:  
 
-  [Cubillos, Blecic, & Dobbs-Dixon (2018): Towards More Reliable Analytic Thermochemical-Equilibrium Abundances](http://adsabs.harvard.edu/abs/Doo-by-doo-by-doo), in prep.  
+  [Cubillos, Blecic, & Dobbs-Dixon (2019): Towards More Reliable Analytic Thermochemical-equilibrium Abundances](http://adsabs.harvard.edu/abs/Doo-by-doo-by-doo), submitted to AAS journals.  
 
 
 ### License
