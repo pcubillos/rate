@@ -123,6 +123,6 @@ Please, be kind and acknowledge the effort of the authors by citing the article 
 
 ### License
 
-Copyright (c) 2018 Patricio Cubillos and contributors.
+Copyright (c) 2018-2019 Patricio Cubillos and contributors.
 ``rate`` is open-source software under the MIT license (see LICENSE).
 
