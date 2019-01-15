@@ -1,4 +1,4 @@
-# Copyright (c) 2018 Patricio Cubillos and contributors.
+# Copyright (c) 2018-2019 Patricio Cubillos and contributors.
 # rate is open-source software under the MIT license (see LICENSE).
 
 __all__ = ["gRT", "newton_raphson", "bound_nr", "top", "Rate"]
@@ -197,11 +197,11 @@ def top(T, C, N, O):
 class Rate():
   """
   Reliable Analytic Thermochemical Equilibrium.
-  Cubillos, Blecic, & Dobbs-Dixon (2018), ApJ, XX, YY.
+  Cubillos, Blecic, & Dobbs-Dixon (2019), ApJ, XX, YY.
 
   References
   ----------
-    CBD2018:  Cubillos, Blecic, & Dobbs-Dixon (2018), ApJ
+    CBD2019:  Cubillos, Blecic, & Dobbs-Dixon (2019), ApJ
     HT2016: Heng & Tsai (2016), ApJ, 829, 104
     HL2016: Heng & Lyons (2016), ApJ, 817, 149
   """
@@ -237,7 +237,7 @@ class Rate():
 
   def kprime0(self, temp, press):
     """
-    Compute the zeroth equilibrium constant K0 (Eq. (X) of CBD2018) for
+    Compute the zeroth equilibrium constant K0 (Eq. (X) of CBD2019) for
     the reaction: H2 <-> 2*H,
     with k0 = n_H**2.
 
@@ -669,7 +669,7 @@ class Rate():
     CO2  = CO * H2O / k2
     C2H2 = k3 * CH4**2
     C2H4 = C2H2 / k4
-    # Solve for NH3 from quadratic formula (Eq. (21) of CBD2018):
+    # Solve for NH3 from quadratic formula (Eq. (21) of CBD2019):
     b = 1.0 + k6*CH4
     NH3 = (np.sqrt(b**2 + 8*f*k5*self.N) - b) /(4*k5)
     # Use this approximation when 2*K5 << (1+K6*CH4):
@@ -747,7 +747,7 @@ class Rate():
   def solve(self, temp, press, C=None, N=None, O=None, poly=None):
     """
     Compute analytic thermochemical equilibrium abundances following
-    the prescription of Cubillos, Blecic, & Dobbs-Dixon (2018), ApJ, XX, YY.
+    the prescription of Cubillos, Blecic, & Dobbs-Dixon (2019), ApJ, XX, YY.
 
     Parameters
     ----------
