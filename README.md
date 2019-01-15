@@ -118,7 +118,7 @@ plt.ylabel("Pressure (bar)")
 
 Please, be kind and acknowledge the effort of the authors by citing the article associated to this project:  
 
-  [Cubillos, Blecic, & Dobbs-Dixon (2019): Towards More Reliable Analytic Thermochemical-equilibrium Abundances](https://arxiv.org/abs/1901.03764), ApJ in press.
+  [Cubillos, Blecic, & Dobbs-Dixon (2019): Towards More Reliable Analytic Thermochemical-equilibrium Abundances](https://ui.adsabs.harvard.edu//#abs/2019arXiv190103764C), ApJ in press.
 
 
 ### License
